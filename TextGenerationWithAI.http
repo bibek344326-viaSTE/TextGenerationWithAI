@@ -1,0 +1,6 @@
+@TextGenerationWithAI_HostAddress = http://localhost:5267
+
+GET {{TextGenerationWithAI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
