@@ -24,7 +24,7 @@ A .NET 9 Web API project for generating AI text using Mistral API with caching a
 * Cache responses in memory for faster retrieval
 * Store generated texts in SQLite database
 * Retrieve history of generated texts
-* Centralized logging using built-in .NET ILogger
+* Centralized logging using Serilog
 
 ---
 
