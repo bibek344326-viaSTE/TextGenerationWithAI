@@ -3,9 +3,9 @@ using TextGenerationWithAI.Models;
 
 namespace TextGenerationWithAI.Data
 {
-    public class AppDbCotext : DbContext
+    public class AppDbContext : DbContext
     {
-        public AppDbCotext(DbContextOptions<AppDbCotext> options) : base(options)
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
         }
 

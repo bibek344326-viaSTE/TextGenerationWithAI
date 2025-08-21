@@ -9,7 +9,7 @@ using TextGenerationWithAI.Data;
 
 namespace TextGenerationWithAI.Migrations
 {
-    [DbContext(typeof(AppDbCotext))]
+    [DbContext(typeof(AppDbContext))]
     partial class AppDbCotextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)

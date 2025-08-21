@@ -18,7 +18,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddMemoryCache();
 
 //Add DbContext with SQLite
-builder.Services.AddDbContext<AppDbCotext>(options =>
+builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Register the TextGenerationService

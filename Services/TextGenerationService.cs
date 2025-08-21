@@ -12,13 +12,13 @@ namespace TextGenerationWithAI.Services
         HttpClient httpClient,
         IConfiguration configuration,
         IMemoryCache cache,
-        AppDbCotext db,
+        AppDbContext db,
         ILogger<TextGenerationService> logger)
     {
         private readonly HttpClient _httpClient = httpClient;
         private readonly IConfiguration _configuration = configuration;
         private readonly IMemoryCache _cache = cache;
-        private readonly AppDbCotext _db = db;
+        private readonly AppDbContext _db = db;
         private readonly ILogger<TextGenerationService> _logger = logger;
 
         public async Task<PromptResponse> GenerateTextAsync(string prompt)

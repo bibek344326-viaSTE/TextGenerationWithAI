@@ -10,7 +10,7 @@ using TextGenerationWithAI.Data;
 
 namespace TextGenerationWithAI.Migrations
 {
-    [DbContext(typeof(AppDbCotext))]
+    [DbContext(typeof(AppDbContext))]
     [Migration("20250821075818_InitialCreate")]
     partial class InitialCreate
     {
