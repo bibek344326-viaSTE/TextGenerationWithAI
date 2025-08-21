@@ -161,3 +161,9 @@ https://localhost:{PORT}/swagger
   * `Response` (string)
   * `CreatedAt` (datetime)
 * Use `dotnet ef migrations add InitialCreate` and `dotnet ef database update` to create/update schema
+
+---
+
+## Future Updates (Possibly)
+* AI Model Selection option
+* UI Based Application
