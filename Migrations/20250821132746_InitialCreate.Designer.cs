@@ -11,7 +11,7 @@ using TextGenerationWithAI.Data;
 namespace TextGenerationWithAI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250821075818_InitialCreate")]
+    [Migration("20250821132746_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -27,6 +27,10 @@ namespace TextGenerationWithAI.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Prompt")

@@ -19,6 +19,7 @@ namespace TextGenerationWithAI.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     Prompt = table.Column<string>(type: "TEXT", nullable: false),
                     Response = table.Column<string>(type: "TEXT", nullable: false),
+                    Model = table.Column<string>(type: "TEXT", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>

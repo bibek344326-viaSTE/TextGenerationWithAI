@@ -21,118 +21,56 @@ namespace TextGenerationWithAI.Services
         private readonly AppDbContext _db = db;
         private readonly ILogger<TextGenerationService> _logger = logger;
 
-        public async Task<PromptResponse> GenerateTextAsync(string prompt)
+        /// <summary>
+        /// Generates text using the Mistral API, with caching and DB storage.
+        /// </summary>
+        public async Task<PromptResponse> GenerateTextAsync(string prompt, string model)
         {
             try
             {
-                // Check cache
-                if (_cache.TryGetValue(prompt, out var cachedObj) && cachedObj is PromptResponse cachedResponse)
-                {
-                    _logger.LogInformation("Returning cached response for prompt: {Prompt}", prompt);
+                // Determine the model to use
+                string selectedModel = GetSelectedModel(model);
+                _logger.LogInformation("Using model '{Model}' for prompt: {Prompt}", selectedModel, prompt);
+
+                // Check cache first
+                string cacheKey = $"{selectedModel}:{prompt}";
+                if (_cache.TryGetValue(cacheKey, out var cachedObj) && cachedObj is PromptResponse cachedResponse)
                     return cachedResponse;
+
+                // Check database
+                var dbResponse = await GetResponseFromDatabaseAsync(prompt, selectedModel);
+                if (dbResponse != null)
+                {
+                    _cache.Set(cacheKey, dbResponse, TimeSpan.FromMinutes(10));
+                    return dbResponse;
                 }
 
-                // Check DB
-                var dbEntry = await _db.GeneratedText.FirstOrDefaultAsync(g => g.Prompt == prompt);
-                if (dbEntry != null)
-                {
-                    var response = new PromptResponse { Text = dbEntry.Response };
-                    _cache.Set(prompt, response, TimeSpan.FromMinutes(10));
-                    _logger.LogInformation("Returning response from database for prompt: {Prompt}", prompt);
-                    return response;
-                }
+                // Call Mistral API
+                var apiResponse = await CallMistralApiAsync(prompt, selectedModel);
 
-                // Get API key
-                string apiKey = _configuration["Mistral:ApiKey"]
-                    ?? Environment.GetEnvironmentVariable("MISTRAL_API_KEY")
-                    ?? throw new InvalidOperationException("Mistral API key is missing.");
+                // Save response to DB and cache
+                await SaveResponseAsync(prompt, selectedModel, apiResponse.Text);
+                _cache.Set(cacheKey, apiResponse, TimeSpan.FromMinutes(10));
 
-                _httpClient.DefaultRequestHeaders.Authorization =
-                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
-
-                var body = new
-                {
-                    model = _configuration["Mistral:Model"] ?? "mistral-large-latest",
-                    messages = new object[] { new { role = "user", content = prompt } },
-                    max_tokens = 500
-                };
-
-                string json = JsonSerializer.Serialize(body);
-                using var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                //get response from Mistral API
-                var resp = await _httpClient.PostAsync(
-                    _configuration["Mistral:BaseUrl"] ?? "https://api.mistral.ai/v1/chat/completions",
-                    content
-                );
-
-                // Check for success
-                if (!resp.IsSuccessStatusCode)
-                {
-                    string errorBody = await resp.Content.ReadAsStringAsync();
-                    _logger.LogError("Mistral API returned error {StatusCode}: {ErrorBody}", resp.StatusCode, errorBody);
-                    throw new HttpRequestException($"Mistral API error: {resp.StatusCode}");
-                }
-
-                //Converting JSON to string
-                using var stream = await resp.Content.ReadAsStreamAsync();
-                using var doc = await JsonDocument.ParseAsync(stream);            
-                string reply = doc.RootElement
-                                  .GetProperty("choices")[0]
-                                  .GetProperty("message")
-                                  .GetProperty("content")
-                                  .GetString() ?? string.Empty;
-
-                var responseObj = new PromptResponse { Text = reply };
-
-                // Save or update DB
-                try
-                {
-                    var existing = await _db.GeneratedText.FirstOrDefaultAsync(g => g.Prompt == prompt);
-                    if (existing != null)
-                    {
-                        existing.Response = reply;
-                        existing.CreatedAt = DateTime.UtcNow;
-                        _db.GeneratedText.Update(existing);
-                    }
-                    else
-                    {
-                        var generated = new GeneratedText
-                        {
-                            Prompt = prompt,
-                            Response = reply,
-                            CreatedAt = DateTime.UtcNow
-                        };
-                        _db.GeneratedText.Add(generated);
-                    }
-                    await _db.SaveChangesAsync();
-                }
-                catch (Exception dbEx)
-                {
-                    _logger.LogError(dbEx, "Failed to save generated response for prompt: {Prompt}", prompt);
-                }
-
-                // Cache the response
-                _cache.Set(prompt, responseObj, TimeSpan.FromMinutes(10));
-                _logger.LogInformation("Generated new response for prompt: {Prompt}", prompt);
-
-                return responseObj;
+                return apiResponse;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error while generating text for prompt: {Prompt}", prompt);
-                throw; // rethrow so controller can handle response
+                _logger.LogError(ex, "Error generating text for model {Model}, prompt: {Prompt}", model, prompt);
+                throw;
             }
         }
 
-        // Retrieve all generated texts from the database
+        /// <summary>
+        /// Retrieves all generated texts from the database.
+        /// </summary>
         public async Task<List<GeneratedText>> GetAllGeneratedTextsAsync()
         {
             try
             {
                 return await _db.GeneratedText
-                    .OrderByDescending(g => g.CreatedAt)
-                    .ToListAsync();
+                                .OrderByDescending(g => g.CreatedAt)
+                                .ToListAsync();
             }
             catch (Exception ex)
             {
@@ -141,7 +79,15 @@ namespace TextGenerationWithAI.Services
             }
         }
 
-        // Clear the cache if needed
+        /// <summary>
+        /// Returns the list of available models from configuration.
+        /// </summary>
+        public List<string> GetAvailableModels()
+            => _configuration.GetSection("Mistral:AvailableModels").Get<List<string>>() ?? new List<string>();
+
+        /// <summary>
+        /// Clears the memory cache.
+        /// </summary>
         public void ClearCache()
         {
             try
@@ -154,5 +100,95 @@ namespace TextGenerationWithAI.Services
                 _logger.LogError(ex, "Error while clearing cache.");
             }
         }
+
+        #region Private Helpers
+
+        private string GetSelectedModel(string model)
+        {
+            var availableModels = GetAvailableModels();
+            return !string.IsNullOrWhiteSpace(model) && availableModels.Contains(model)
+                ? model
+                : _configuration["Mistral:DefaultModel"] ?? "mistral-large";
+        }
+
+        private async Task<PromptResponse?> GetResponseFromDatabaseAsync(string prompt, string model)
+        {
+            var dbEntry = await _db.GeneratedText.FirstOrDefaultAsync(g => g.Prompt == prompt && g.Model == model);
+            return dbEntry == null ? null : new PromptResponse { Text = dbEntry.Response };
+        }
+
+        private async Task<PromptResponse> CallMistralApiAsync(string prompt, string model)
+        {
+            string apiKey = _configuration["Mistral:ApiKey"]
+                ?? throw new InvalidOperationException("Mistral API key is missing.");
+
+            _httpClient.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+
+            var body = new
+            {
+                model = model, // Important: API expects 'model' field
+                messages = new[] { new { role = "user", content = prompt } },
+                max_tokens = 600
+            };
+
+            using var content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.PostAsync(
+                _configuration["Mistral:BaseUrl"] ?? "https://api.mistral.ai/v1/chat/completions",
+                content
+            );
+
+            if (!response.IsSuccessStatusCode)
+            {
+                string errorBody = await response.Content.ReadAsStringAsync();
+                _logger.LogError("API error {StatusCode}: {ErrorBody}", response.StatusCode, errorBody);
+                throw new HttpRequestException($"API error: {response.StatusCode}");
+            }
+
+            using var stream = await response.Content.ReadAsStreamAsync();
+            using var doc = await JsonDocument.ParseAsync(stream);
+            string reply = doc.RootElement
+                              .GetProperty("choices")[0]
+                              .GetProperty("message")
+                              .GetProperty("content")
+                              .GetString() ?? string.Empty;
+
+            return new PromptResponse { Text = reply };
+        }
+
+        private async Task SaveResponseAsync(string prompt, string model, string responseText)
+        {
+            try
+            {
+                var existing = await _db.GeneratedText.FirstOrDefaultAsync(g => g.Prompt == prompt && g.Model == model);
+
+                if (existing != null)
+                {
+                    existing.Response = responseText;
+                    existing.CreatedAt = DateTime.UtcNow;
+                    _db.GeneratedText.Update(existing);
+                }
+                else
+                {
+                    var generated = new GeneratedText
+                    {
+                        Prompt = prompt,
+                        Response = responseText,
+                        Model = model,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _db.GeneratedText.Add(generated);
+                }
+
+                await _db.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save generated response for model {Model}", model);
+            }
+        }
+
+        #endregion
     }
 }

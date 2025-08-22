@@ -10,7 +10,7 @@ using TextGenerationWithAI.Data;
 namespace TextGenerationWithAI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbCotextModelSnapshot : ModelSnapshot
+    partial class AppDbContextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
@@ -24,6 +24,10 @@ namespace TextGenerationWithAI.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Prompt")

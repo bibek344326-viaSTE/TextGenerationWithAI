@@ -5,42 +5,39 @@ namespace TextGenerationWithAI.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class TextGenerationController : ControllerBase
+    public class TextGenerationController(
+        Services.TextGenerationService textGenerationService,
+        ILogger<TextGenerationController> logger,
+        IConfiguration configuration) : ControllerBase
     {
-        private readonly Services.TextGenerationService _textGenerationService;
-        private readonly ILogger<TextGenerationController> _logger;
-        public TextGenerationController(Services.TextGenerationService textGenerationService, ILogger<TextGenerationController> _logger)
-        {
-            _textGenerationService = textGenerationService;
-            this._logger = _logger;
-        }
+        private readonly Services.TextGenerationService _textGenerationService = textGenerationService;
+        private readonly ILogger<TextGenerationController> _logger = logger;
+        private readonly IConfiguration _configuration = configuration;
 
-
-        //Post endpoint to generate text based on a prompt
+        /// <summary>
+        /// Generates text based on the provided prompt and optional model.
+        /// </summary>
         [HttpPost("generate")]
         public async Task<IActionResult> GenerateTextAsync([FromBody] PromptRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.Prompt))
-            {
-
-                // Log the error
-                _logger.LogError("Empty prompt received from the client.");
                 return BadRequest("Prompt cannot be empty.");
-            }
+
             try
             {
-                var response = await _textGenerationService.GenerateTextAsync(request.Prompt);
+                var response = await _textGenerationService.GenerateTextAsync(request.Prompt, request.Model);
                 return Ok(response);
             }
             catch (Exception ex)
             {
-                // Log the exception
-                _logger.LogError(ex, "An error occurred while generating text for the prompt: {@Request}", request);
+                _logger.LogError(ex, "Error generating text for prompt: {@Request}", request);
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
 
-        //Get endpoint to retrieve the history of generated texts
+        /// <summary>
+        /// Retrieves the history of all generated texts.
+        /// </summary>
         [HttpGet("history")]
         public async Task<IActionResult> GetHistoryAsync()
         {
@@ -51,11 +48,27 @@ namespace TextGenerationWithAI.Controllers
             }
             catch (Exception ex)
             {
-                // Log the exception
-                _logger.LogError(ex, "An error occurred while retrieving the history of generated texts.");
+                _logger.LogError(ex, "Error retrieving generated texts history.");
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
 
+        /// <summary>
+        /// Retrieves the list of available models.
+        /// </summary>
+        [HttpGet("models")]
+        public IActionResult GetModels()
+        {
+            try
+            {
+                var models = _textGenerationService.GetAvailableModels();
+                return Ok(models);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving available models.");
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
     }
 }
