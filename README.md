@@ -153,7 +153,7 @@ https://localhost:{PORT}/swagger
 
 ## Database
 
-* SQLite database (`generated_text.db`)
+* SQLite database (`generatedtexts.db`)
 * Table: `GeneratedText`
 * Columns:
 
