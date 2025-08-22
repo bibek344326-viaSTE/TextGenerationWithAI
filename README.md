@@ -107,6 +107,7 @@ https://localhost:{PORT}/swagger
 
 ```json
 {
+  "model": "{selected-model}",
   "prompt": "sample text example"
 }
 ```
@@ -165,5 +166,5 @@ https://localhost:{PORT}/swagger
 ---
 
 ## Future Updates (Possibly)
-* AI Model Selection option
+* AI Model Selection (Partially Completed)
 * UI Based Application
