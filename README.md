@@ -30,7 +30,7 @@ A .NET 9 Web API project for generating AI text using Mistral API with caching a
 
 ## Prerequisites
 
-* [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+* [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
 * [SQLite](https://www.sqlite.org/download.html)
 * Mistral API key
 
