@@ -160,6 +160,7 @@ https://localhost:{PORT}/swagger
   * `Id` (int, PK)
   * `Prompt` (string)
   * `Response` (string)
+  * `Model` (string)
   * `CreatedAt` (datetime)
 * Use `dotnet ef migrations add InitialCreate` and `dotnet ef database update` to create/update schema
 
