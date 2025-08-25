@@ -68,11 +68,15 @@ Create/Update `appsettings.json` file in the root directory.
   "ConnectionStrings": {
     "DefaultConnection": "Data Source=generated_text.db"
   },
-  "Mistral": {
-    "ApiKey": "YOUR_MISTRAL_API_KEY",
-    "BaseUrl": "https://api.mistral.ai/v1/chat/completions",
-    "Model": "mistral-large-latest"
-  }
+ "Mistral": {
+   "ApiKey": "YOUR_MISTRAL_API_KEY",
+   "AvailableModels": [
+     "mistral-small-latest",
+     "mistral-medium-latest",
+     "mistral-large-latest"],
+   "BaseUrl": "https://api.mistral.ai/v1/chat/completions",
+   "DefaultModel": "mistral-large-latest"
+ }
 }
 ```
 
